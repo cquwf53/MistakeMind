@@ -2,8 +2,10 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.vscode/
 .env
 storage/*.db
+storage/*.md
 storage/*.log
 storage/uploads/*
 !storage/uploads/.gitkeep
