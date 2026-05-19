@@ -21,7 +21,8 @@ def load_env_file() -> None:
         pass
     if not env_path.exists():
         return
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+    content = env_path.read_text(encoding="utf-8-sig")  # utf-8-sig 自动去 BOM
+    for raw_line in content.splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
