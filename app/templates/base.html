@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ subject.name }} - 考研错题归因系统</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+</head>
+<body hx-boost="true">
+  <header class="topbar">
+    <a class="brand" href="/?subject={{ subject.code }}">
+      <span class="brand-mark">M</span>
+      <span>
+        <strong>错题归因</strong>
+        <small>考研复习闭环</small>
+      </span>
+    </a>
+    <nav class="subject-switch" aria-label="学科切换">
+      {% for item in subjects %}
+        <a class="{{ 'active' if item.code == subject.code else '' }}" href="{{ request.url.path }}?subject={{ item.code }}">{{ item.code if item.code == '408' else '数一' }}</a>
+      {% endfor %}
+    </nav>
+    <nav class="main-nav" aria-label="主导航">
+      <a class="{{ 'active' if request.url.path == '/' else '' }}" href="/?subject={{ subject.code }}">Dashboard</a>
+      <a class="{{ 'active' if request.url.path == '/upload' else '' }}" href="/upload?subject={{ subject.code }}">录入</a>
+      <a class="{{ 'active' if request.url.path == '/mistakes' else '' }}" href="/mistakes?subject={{ subject.code }}">错题库</a>
+      <a class="{{ 'active' if request.url.path == '/reviews' else '' }}" href="/reviews?subject={{ subject.code }}">复习</a>
+      <a class="{{ 'active' if request.url.path == '/knowledge' else '' }}" href="/knowledge?subject={{ subject.code }}">知识点</a>
+      <a class="{{ 'active' if request.url.path == '/sources' else '' }}" href="/sources?subject={{ subject.code }}">来源</a>
+      <a class="{{ 'active' if request.url.path == '/weekly-report' else '' }}" href="/weekly-report?subject={{ subject.code }}">周报</a>
+    </nav>
+    <span class="ai-pill {{ 'on' if ai_enabled else 'off' }}">{{ 'AI 已连接' if ai_enabled else '规则兜底' }}</span>
+  </header>
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>学习画像</h1>
+  </div>
+  <a class="primary-action" href="/upload?subject={{ subject.code }}">新增错题</a>
+</section>
+
+<section class="metric-grid">
+  <article class="metric"><span>错题总数</span><strong>{{ stats.total }}</strong></article>
+  <article class="metric"><span>已确认</span><strong>{{ stats.confirmed }}</strong></article>
+  <article class="metric"><span>今日复习</span><strong>{{ stats.today_tasks }}</strong></article>
+  <article class="metric alert"><span>逾期任务</span><strong>{{ stats.overdue_tasks }}</strong></article>
+  <article class="metric"><span>复习完成率</span><strong>{{ stats.review_completion_rate }}%</strong></article>
+</section>
+
+<section class="dashboard-grid">
+  <article class="panel">
+    <div class="panel-title">
+      <h2>薄弱知识点</h2>
+      <a href="/mistakes?subject={{ subject.code }}">查看错题</a>
+    </div>
+    {% if stats.weak_points %}
+      <div class="bar-list">
+        {% for name, count in stats.weak_points %}
+          <div class="bar-row">
+            <span>{{ name }}</span>
+            <div class="bar-track"><i style="width: {{ 18 + count * 12 }}%"></i></div>
+            <strong>{{ count }}</strong>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty">暂无已分析错题。</p>
+    {% endif %}
+  </article>
+
+  <article class="panel">
+    <div class="panel-title">
+      <h2>错因分布</h2>
+      <a href="/weekly-report?subject={{ subject.code }}">生成周报</a>
+    </div>
+    {% if stats.error_counts %}
+      {% set pie_colors = ['#1f7a6d','#2563eb','#b45309','#7c3aed','#dc2626','#0891b2','#65a30d','#be185d','#6b7280'] %}
+      {% set pie_total = stats.error_counts|sum(attribute='1') %}
+      <div class="chart-row">
+        <svg viewBox="0 0 200 200" class="pie-chart" aria-label="错因分布饼图">
+          {% set ns = namespace(offset=0) %}
+          {% for name, count in stats.error_counts %}
+            {% set pct = count / pie_total * 100 %}
+            <circle r="80" cx="100" cy="100" fill="transparent"
+              stroke="{{ pie_colors[loop.index0 % pie_colors|length] }}"
+              stroke-width="36"
+              stroke-dasharray="{{ pct * 5.026 }} {{ 502.6 - pct * 5.026 }}"
+              stroke-dashoffset="{{ -ns.offset * 5.026 }}"
+              transform="rotate(-90 100 100)"/>
+            {% set ns.offset = ns.offset + pct %}
+          {% endfor %}
+        </svg>
+        <div class="pie-legend">
+          {% for name, count in stats.error_counts %}
+            <span><i style="background:{{ pie_colors[loop.index0 % pie_colors|length] }}"></i>{{ name }} <b>{{ count }}</b></span>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <p class="empty">确认错题后会出现错因统计。</p>
+    {% endif %}
+  </article>
+</section>
+
+<section class="panel trend-panel">
+  <div class="panel-title">
+    <h2>最近错因趋势</h2>
+    <a href="/weekly-report?subject={{ subject.code }}">查看周报</a>
+  </div>
+  {% set max_trend = stats.error_trend|map(attribute='total')|max if stats.error_trend else 1 %}
+  {% set max_trend = max_trend if max_trend > 0 else 1 %}
+  <div class="trend-chart-wrap">
+    <svg viewBox="0 0 700 180" class="trend-chart" aria-label="最近7天错因趋势折线图" preserveAspectRatio="none">
+      <line x1="50" y1="160" x2="660" y2="160" stroke="#d9e0e8" stroke-width="1"/>
+      <line x1="50" y1="80" x2="660" y2="80" stroke="#d9e0e8" stroke-width="0.5" stroke-dasharray="4"/>
+      {% set trend_points = [] %}
+      {% for row in stats.error_trend %}
+        {% set x = 50 + loop.index0 * 100 %}
+        {% set y = 160 - (row.total / max_trend * 130) %}
+        {% set _ = trend_points.append(x ~ ',' ~ y) %}
+        <circle cx="{{ x }}" cy="{{ y }}" r="5" fill="#1f7a6d"/>
+        <text x="{{ x }}" y="176" text-anchor="middle" font-size="11" fill="#667085">{{ row.label }}</text>
+        <text x="{{ x }}" y="{{ y - 10 }}" text-anchor="middle" font-size="11" fill="#17202a">{{ row.total }}</text>
+      {% endfor %}
+      {% if trend_points|length > 1 %}
+        <polyline points="{{ trend_points|join(' ') }}" fill="none" stroke="#1f7a6d" stroke-width="2.5" stroke-linejoin="round"/>
+      {% endif %}
+    </svg>
+  </div>
+  <div class="trend-list">
+    {% for row in stats.error_trend %}
+      <div class="trend-row">
+        <strong>{{ row.label }}</strong>
+        <div class="bar-track"><i style="width: {{ 12 + row.total * 16 }}%"></i></div>
+        <span>
+          {% if row.top_items %}
+            {% for name, count in row.top_items %}{{ name }} {{ count }}{% if not loop.last %} / {% endif %}{% endfor %}
+          {% else %}
+            暂无
+          {% endif %}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>最近错题</h2>
+    <a href="/reviews?subject={{ subject.code }}">去复习</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>题干</th><th>知识点</th><th>错因</th><th>状态</th><th>掌握</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for mistake in stats.recent %}
+          <tr>
+            <td class="question-cell">{{ mistake.question_text }}</td>
+            <td>{{ mistake.analysis.knowledge_path if mistake.analysis else '待分析' }}</td>
+            <td>{{ mistake.analysis.error_type if mistake.analysis else '待分析' }}</td>
+            <td><span class="status {{ mistake.status }}">{{ '已确认' if mistake.is_confirmed else '待确认' }}</span></td>
+            <td>{{ mistake.mastery_status }}</td>
+            <td><a href="/mistakes/{{ mistake.id }}/confirm?subject={{ subject.code }}">打开</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" class="empty">还没有错题，先录入一条试试。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

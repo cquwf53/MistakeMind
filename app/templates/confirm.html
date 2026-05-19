@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ mistake.source_type }} · {{ mistake.source_name }}</p>
+    <h1>确认归因</h1>
+  </div>
+  <form class="action-row reanalyze-form" method="post" action="/mistakes/{{ mistake.id }}/reanalyze">
+    <input type="hidden" name="subject_code" value="{{ subject.code }}">
+    <select name="analysis_model" aria-label="重新分析模型">
+      <option value="">自动 fallback</option>
+      {% for model in text_model_options %}
+        <option value="{{ model }}">{{ model }}</option>
+      {% endfor %}
+    </select>
+    <button class="secondary-action" type="submit">重新分析</button>
+  </form>
+</section>
+
+<form class="confirm-layout" method="post" action="/mistakes/{{ mistake.id }}/confirm">
+  <input type="hidden" name="subject_code" value="{{ subject.code }}">
+  <section class="panel">
+    <h2>题目信息</h2>
+    <label>题干<textarea name="question_text" rows="12" required>{{ mistake.question_text }}</textarea></label>
+    <label>标准答案 / 解析<textarea name="answer_text" rows="5">{{ mistake.answer_text }}</textarea></label>
+    <label>我的错误<textarea name="user_error" rows="4">{{ mistake.user_error }}</textarea></label>
+  </section>
+
+  <aside class="panel">
+    <h2>AI 归因建议</h2>
+    {% if mistake.analysis and mistake.analysis.ai_model_used %}
+      <div class="model-note">
+        <span>{{ '手动指定' if mistake.analysis.ai_model_mode.startswith('manual') else ('规则兜底' if mistake.analysis.ai_model_mode == 'rules' else '自动模式') }}</span>
+        <strong>{{ mistake.analysis.ai_model_used }}</strong>
+      </div>
+    {% endif %}
+    {% if mistake.analysis and (mistake.analysis.confidence < 0.6 or 'AI 调用失败' in mistake.analysis.ai_summary or '未启用 AI API' in mistake.analysis.ai_summary) %}
+      <div class="notice warning">
+        <strong>需要人工复核</strong>
+        <span>{{ mistake.analysis.ai_summary }}</span>
+      </div>
+    {% endif %}
+    <label>知识点
+      <select name="knowledge_path">
+        {% set current_path = mistake.analysis.knowledge_path if mistake.analysis else '' %}
+        {% if current_path and current_path not in knowledge_points|map(attribute='path')|list %}
+          <option selected>{{ current_path }}</option>
+        {% endif %}
+        {% for point in knowledge_points %}
+          <option value="{{ point.path }}" {{ 'selected' if point.path == current_path else '' }}>{{ point.path }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>错因类型
+      <select name="error_type">
+        {% for item in error_types %}
+          <option value="{{ item }}" {{ 'selected' if mistake.analysis and mistake.analysis.error_type == item else '' }}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="two-col">
+      <label>难度<input name="difficulty" type="number" min="1" max="5" value="{{ mistake.analysis.difficulty if mistake.analysis else 3 }}"></label>
+      <label>置信度<input name="confidence" type="number" min="0" max="1" step="0.01" value="{{ mistake.analysis.confidence if mistake.analysis else 0.5 }}"></label>
+    </div>
+    <label>归因摘要<textarea name="ai_summary" rows="4">{{ mistake.analysis.ai_summary if mistake.analysis else '' }}</textarea></label>
+    <label>变式练习<textarea name="variant_question" rows="4">{{ mistake.analysis.variant_question if mistake.analysis else '' }}</textarea></label>
+    <label>复习建议<textarea name="review_suggestion" rows="4">{{ mistake.analysis.review_suggestion if mistake.analysis else '' }}</textarea></label>
+    <label>人工修正备注<textarea name="user_revision_note" rows="3">{{ mistake.analysis.user_revision_note if mistake.analysis else '' }}</textarea></label>
+    <button class="primary-action full" type="submit">确认并生成复习计划</button>
+  </aside>
+</form>
+{% endblock %}

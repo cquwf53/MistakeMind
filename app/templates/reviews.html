@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>复习计划</h1>
+  </div>
+  <div class="action-row">
+    <a class="secondary-action" href="/reviews/tomorrow.md?subject={{ subject.code }}">导出明日清单</a>
+    <a class="secondary-action" href="/weekly-report?subject={{ subject.code }}">查看周报</a>
+  </div>
+</section>
+
+<section class="review-grid">
+  {% for key, title in [('overdue', '逾期'), ('today', '今日'), ('upcoming', '后续'), ('completed', '已完成')] %}
+    <article class="panel">
+      <div class="panel-title">
+        <h2>{{ title }}</h2>
+        <span>{{ sections[key]|length }}</span>
+      </div>
+      <div class="task-list">
+        {% for task in sections[key] %}
+          <div class="task">
+            <div>
+              <strong>{{ task.due_date }}</strong>
+              <p>{{ task.mistake.analysis.knowledge_path if task.mistake.analysis else '待分析知识点' }}</p>
+              <small>{{ task.task_type }} · 间隔 {{ task.interval_days }} 天</small>
+            </div>
+            {% if task.status != 'completed' %}
+              <form method="post" action="/reviews/{{ task.id }}/complete">
+                <input type="hidden" name="subject_code" value="{{ subject.code }}">
+                <button class="secondary-action" type="submit">完成</button>
+              </form>
+            {% endif %}
+          </div>
+        {% else %}
+          <p class="empty">暂无任务。</p>
+        {% endfor %}
+      </div>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

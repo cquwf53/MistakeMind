@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>错题库</h1>
+  </div>
+  <a class="primary-action" href="/upload?subject={{ subject.code }}">新增错题</a>
+</section>
+
+<form class="filter-bar" method="get" action="/mistakes">
+  <input type="hidden" name="subject" value="{{ subject.code }}">
+  <select name="status">
+    <option value="all" {{ 'selected' if filters.status == 'all' else '' }}>全部状态</option>
+    <option value="pending" {{ 'selected' if filters.status == 'pending' else '' }}>待确认</option>
+    <option value="confirmed" {{ 'selected' if filters.status == 'confirmed' else '' }}>已确认</option>
+  </select>
+  <select name="mastery_status">
+    <option value="all" {{ 'selected' if filters.mastery_status == 'all' else '' }}>全部掌握状态</option>
+    {% for item in mastery_statuses %}
+      <option value="{{ item }}" {{ 'selected' if filters.mastery_status == item else '' }}>{{ item }}</option>
+    {% endfor %}
+  </select>
+  <select name="knowledge_path">
+    <option value="all" {{ 'selected' if filters.knowledge_path == 'all' else '' }}>全部知识点</option>
+    {% for point in knowledge_points %}
+      <option value="{{ point.path }}" {{ 'selected' if filters.knowledge_path == point.path else '' }}>{{ point.path }}</option>
+    {% endfor %}
+  </select>
+  <select name="error_type">
+    <option value="all" {{ 'selected' if filters.error_type == 'all' else '' }}>全部错因</option>
+    {% for item in error_types %}
+      <option value="{{ item }}" {{ 'selected' if filters.error_type == item else '' }}>{{ item }}</option>
+    {% endfor %}
+  </select>
+  <input name="keyword" value="{{ filters.keyword }}" placeholder="搜索题干或知识点">
+  <button class="secondary-action" type="submit">筛选</button>
+</form>
+
+<section class="mistake-list">
+  {% for mistake in mistakes %}
+    <article class="mistake-card">
+      <div>
+        <div class="card-meta">
+          <span class="status {{ mistake.status }}">{{ '已确认' if mistake.is_confirmed else '待确认' }}</span>
+          <span>{{ mistake.source_name }}</span>
+        </div>
+        <h2>{{ mistake.question_text }}</h2>
+        <p>{{ mistake.analysis.knowledge_path if mistake.analysis else '待分析' }}</p>
+        <div class="tag-cloud compact">
+          <span>{{ mistake.analysis.error_type if mistake.analysis else '待分析' }}</span>
+          <span>难度 {{ mistake.analysis.difficulty if mistake.analysis else '-' }}</span>
+          <span>置信度 {{ '%.2f'|format(mistake.analysis.confidence) if mistake.analysis else '-' }}</span>
+          <span>{{ mistake.mastery_status }}</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <a class="secondary-action" href="/mistakes/{{ mistake.id }}/confirm?subject={{ subject.code }}">编辑</a>
+        <form method="post" action="/mistakes/{{ mistake.id }}/archive">
+          <input type="hidden" name="subject_code" value="{{ subject.code }}">
+          <button class="ghost-action" type="submit">归档</button>
+        </form>
+      </div>
+    </article>
+  {% else %}
+    <article class="panel"><p class="empty">当前筛选条件下没有错题。</p></article>
+  {% endfor %}
+</section>
+{% endblock %}

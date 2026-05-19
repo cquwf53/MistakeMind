@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>来源文件</h1>
+  </div>
+  <a class="primary-action" href="/upload?subject={{ subject.code }}">上传文件</a>
+</section>
+
+<section class="mistake-list">
+  {% for item in source_files %}
+    <article class="mistake-card">
+      <div>
+        <div class="card-meta">
+          <span>{{ item.source_type }}</span>
+          <span>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        <h2>{{ item.source_name }}</h2>
+        <p>已生成 {{ item.mistake_count }} 条错题记录</p>
+      </div>
+      <div class="card-actions">
+        <a class="secondary-action" href="/sources/{{ item.source_path }}">下载原文件</a>
+      </div>
+    </article>
+  {% else %}
+    <article class="panel"><p class="empty">还没有上传来源文件。</p></article>
+  {% endfor %}
+</section>
+{% endblock %}

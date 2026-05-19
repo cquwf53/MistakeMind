@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>知识点掌握画像</h1>
+  </div>
+  <a class="secondary-action" href="/mistakes?subject={{ subject.code }}">查看错题库</a>
+</section>
+
+<section class="panel">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>知识点</th>
+          <th>错题</th>
+          <th>待确认</th>
+          <th>复习中</th>
+          <th>已掌握</th>
+          <th>复习完成率</th>
+          <th>平均置信度</th>
+          <th>风险分</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in profile %}
+          <tr class="{{ 'muted-row' if row.total == 0 else '' }}">
+            <td>
+              <strong>{{ row.level3 }}</strong>
+              <small>{{ row.level1 }} / {{ row.level2 }}</small>
+            </td>
+            <td>{{ row.total }}</td>
+            <td>{{ row.pending }}</td>
+            <td>{{ row.reviewing }}</td>
+            <td>{{ row.mastered }}</td>
+            <td>
+              <div class="progress-cell">
+                <div class="bar-track"><i style="width: {{ row.completion_rate }}%"></i></div>
+                <span>{{ row.completion_rate }}%</span>
+              </div>
+            </td>
+            <td>{{ '%.2f'|format(row.avg_confidence) }}</td>
+            <td>{{ row.risk_score }}</td>
+            <td><a href="/mistakes?subject={{ subject.code }}&knowledge_path={{ row.path|urlencode }}">错题</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="9" class="empty">暂无知识点数据。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

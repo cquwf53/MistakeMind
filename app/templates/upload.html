@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>录入错题</h1>
+  </div>
+</section>
+
+<section class="upload-grid">
+  <article class="panel">
+    <h2>手动录入</h2>
+    <form class="stack-form" method="post" action="/upload/manual">
+      <input type="hidden" name="subject_code" value="{{ subject.code }}">
+      <label>题干<textarea name="question_text" rows="8" required placeholder="粘贴题目、选项、公式或代码片段"></textarea></label>
+      <label>标准答案 / 解析<textarea name="answer_text" rows="4" placeholder="可选"></textarea></label>
+      <label>我的错误<textarea name="user_error" rows="3" placeholder="例如：忘记考虑边界条件，或者公式记错"></textarea></label>
+      <label>本次归因模型
+        <select name="analysis_model">
+          <option value="">自动 fallback</option>
+          {% for model in text_model_options %}
+            <option value="{{ model }}">{{ model }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="primary-action" type="submit">分析并确认</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>文件导入</h2>
+    <form class="stack-form" method="post" action="/upload/file" enctype="multipart/form-data">
+      <input type="hidden" name="subject_code" value="{{ subject.code }}">
+      <label>截图 / 图片 / PDF / Word / 文本<input name="upload" type="file" required accept=".png,.jpg,.jpeg,.webp,.bmp,.pdf,.docx,.txt,.md"></label>
+      <label>图片 OCR 模型
+        <select name="ocr_model">
+          <option value="">自动 fallback</option>
+          {% for model in vision_model_options %}
+            <option value="{{ model }}">{{ model }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>本次归因模型
+        <select name="analysis_model">
+          <option value="">自动 fallback</option>
+          {% for model in text_model_options %}
+            <option value="{{ model }}">{{ model }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div class="import-modes">
+        <span>图片</span>
+        <span>PDF</span>
+        <span>Word</span>
+        <span>文本</span>
+      </div>
+      <button class="primary-action" type="submit">提取并进入确认</button>
+    </form>
+  </article>
+</section>
+{% endblock %}

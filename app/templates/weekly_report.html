@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <p class="eyebrow">{{ subject.name }}</p>
+    <h1>学习周报</h1>
+  </div>
+  <div class="action-row">
+    <a class="secondary-action" href="/weekly-report.md?subject={{ subject.code }}">导出 Markdown</a>
+    <a class="primary-action" href="/weekly-report.pdf?subject={{ subject.code }}">导出 PDF</a>
+  </div>
+</section>
+
+<section class="panel report-panel">
+  <pre>{{ markdown }}</pre>
+</section>
+{% endblock %}
