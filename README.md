@@ -1,157 +1,103 @@
-# 考研/课程错题自动归因系统
+# MistakeMind
 
-一个面向复试展示的单用户 Web 系统：支持 `408` 与 `数一` 两个独立知识域，完成错题录入、AI/规则归因、人工确认、间隔复习、学习画像和周报导出。
+**把错题整理成可确认的分析结果和可执行的复习计划。**
 
-## 功能闭环
+面向考研 408 与数学一的单用户学习工具：输入题目、答案和自己的错误过程，获得知识点、错因及复习建议，经人工确认后生成复习任务，并查看学习画像和导出周报。
 
-- 录入方式：手动录入、图片/截图、PDF、Word、文本文件。
-- 归因分析：知识点、错因类型、难度、置信度、归因摘要、变式题、复习建议。
-- 学科隔离：`408` 与 `数一` 的错题库、统计、复习计划完全分离。
-- 自动化复习：确认错题后自动生成当天、1 天、3 天、7 天、14 天复习任务。
-- 学习画像：展示薄弱知识点、错因分布饼图、最近错因趋势折线图、复习完成率和最近错题。
-- 来源管理：文件上传后保留来源记录，可按学科查看并下载原文件。
-- 周报导出：按学科导出 Markdown / PDF。
-- 离线兜底：未配置 AI API 时使用关键词和规则完成初步归因，系统仍可完整演示。
-- 模型选择：默认按候选模型自动 fallback，也可以在录入或重新分析时手动指定本次模型。
-- OCR 二阶段：图片/扫描 PDF 先走视觉模型抽取原始文本，再由文本模型修正 OCR 噪声。
-- 扫描 PDF 支持：文本极少的 PDF 页面自动渲染为图片并走视觉 OCR。
-- 自动调度：APScheduler 每晚自动生成明日复习清单、每周一自动生成学习周报。
+项目围绕个人备考需求进行 AI 辅助开发，同时将大模型接入实际学习流程。技术栈为 **Python · FastAPI · Jinja2 / HTMX · SQLAlchemy · SQLite**。
 
-## 技术栈
+[启动与配置](docs/usage.md) · [AI 工作流](docs/ai-workflow.md) · [验证记录](docs/validation.md)
 
-- FastAPI
-- Jinja2 + HTMX 渐进增强
-- SQLite + SQLAlchemy + Alembic
-- pypdf / pypdfium2 / python-docx / reportlab
-- APScheduler（后台定时任务）
-- OpenAI-compatible Chat API
-- SVG 数据可视化（饼图 + 折线图，离线可用）
+## 一次完整的使用流程
+
+```mermaid
+flowchart LR
+    Input[手动输入 / 图片 / 文档] --> Extract[提取题干]
+    Extract --> Analyze[AI 分析 / 规则兜底]
+    Analyze --> Confirm[人工检查与修改]
+    Confirm --> Review[固定间隔复习]
+    Review --> Report[学习画像与周报]
+```
+
+| 环节 | 当前能力 |
+| --- | --- |
+| 录入 | 手动输入、图片、文本、PDF 和 Word；保存来源文件 |
+| 多模态提取 | 视觉模型 OCR，再用文本模型修正；扫描 PDF 可渲染为图片识别 |
+| 错因分析 | 知识点、错因类型、难度、置信度、归因摘要、变式题及复习建议 |
+| 人工确认 | 编辑题干和分析结果，低置信度时提示复核，确认后进入复习流程 |
+| 复习 | 按 0、1、3、7、14 天生成任务，记录完成情况 |
+| 画像与报告 | 学科独立的知识点统计、错因分布、趋势、复习完成率及 Markdown / PDF 周报 |
+
+## AI 应用的实现重点
+
+- **把模型输出接到业务数据中**：给模型提供学科知识点与允许的错因类型，要求 JSON 输出，再对字段做匹配、范围限制和默认值处理。
+- **保留用户决定权**：模型先生成建议，用户修改、确认后再创建复习任务。
+- **处理失败路径**：未配置 API 或分析失败时使用关键词与规则；图片无法识别时进入人工补充流程。
+- **记录模型选择**：支持自动选择和手动指定模型，记录分析使用的模型与模式；显式配置候选列表时可顺序尝试。
+- **两阶段 OCR**：视觉提取与文本修正分开；修正失败时保留原始 OCR 文本。
+
+实现入口：[模型客户端](app/ai.py)、[文件提取](app/extractors.py)、[分析与确认](app/services.py)、[数据模型](app/models.py)。
+
+当前实现使用提示词约束和应用侧字段规范化，并未使用服务端严格 JSON Schema 输出模式。知识组织采用三级知识点树与关键词匹配；复习间隔固定，尚未按个人表现自适应。详细流程和边界见 [AI 工作流](docs/ai-workflow.md)。
 
 ## 快速启动
 
-### PowerShell（推荐）
+在项目目录使用 PowerShell：
 
 ```powershell
 .\start.ps1
 ```
 
-### 手动
+或手动创建环境：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
-.\.venv\Scripts\python -m alembic upgrade head
-.\.venv\Scripts\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-### Docker
+浏览器打开 `http://127.0.0.1:8000`。首次启动会初始化数据库与基础知识点。
 
-```bash
-docker build -t mistake-mind .
-docker run -p 8000:8000 --env-file .env mistake-mind
+不配置 API Key 时可以体验规则分析、人工确认、复习与报表。要启用 AI，将 `.env.example` 复制为 `.env`，配置兼容的接口地址、密钥以及文本/视觉模型；密钥保留在本地。
+
+```dotenv
+AI_BASE_URL=https://your-provider.example/v1
+AI_API_KEY=replace-with-your-key
+AI_MODEL=your-text-model
+AI_VISION_MODEL=your-vision-model
 ```
 
-打开 `http://127.0.0.1:8000`。
+图片识别需要支持图片输入的模型。自动模型选择依赖服务端模型列表和名称启发式，建议按供应商实际支持情况显式配置。配置细节、Docker、调度与导出命令见[使用说明](docs/usage.md)。
 
-## AI 配置
+## 演示与测试
 
-复制 `.env.example` 为 `.env`，或直接设置环境变量：
-
-```powershell
-$env:AI_BASE_URL="https://api.openai.com/v1"
-$env:AI_API_KEY="你的 API Key"
-$env:AI_MODEL="auto"
-$env:AI_VISION_MODEL="auto"
-```
-
-兼容大多数 OpenAI-style `/chat/completions` 服务。未配置 key 时，页面右上角显示"规则兜底"。
-
-图片 OCR 和 AI 结构化归因需要配置可用的视觉/文本模型 API；未配置时图片会进入人工补充题干流程。
-
-如果供应商只给了域名和明确端点，例如 `https://example.com` + `/v1/chat/completions`，建议把 `AI_BASE_URL` 写成 `https://example.com/v1`，避免请求先命中非 `/v1` 路径。
-
-`AI_MODEL` 和 `AI_VISION_MODEL` 可以写成逗号分隔的候选列表。页面默认使用自动 fallback；如果在录入页或确认页选择了某个模型，本次分析只使用该模型，失败后转入规则兜底并保留人工确认流程。
-
-## 自动调度
-
-系统启动后 APScheduler 自动运行：
-
-- **每晚 22:00**：为所有学科生成明日复习清单 → `storage/tomorrow_reviews_{subject}.md`
-- **每周一 09:00**：为所有学科生成学习周报 → `storage/weekly_report_{subject}.md`
-
-可通过环境变量调整：
-
-```
-APP_SCHEDULER_ENABLED=1
-APP_SCHEDULER_TOMORROW_TIME=22:00
-APP_SCHEDULER_WEEKLY_TIME=mon 09:00
-```
-
-设置 `APP_SCHEDULER_ENABLED=0` 可禁用调度。
-
-## 数据库
-
-应用启动时会自动创建 SQLite 表并写入内置知识点树。也可以使用 Alembic：
-
-```powershell
-.\.venv\Scripts\python -m alembic upgrade head
-```
-
-## 演示数据和复习清单
-
-写入复试展示用演示数据：
+建议在独立副本中生成示例数据，避免混入自己的错题库：
 
 ```powershell
 .\.venv\Scripts\python -m app.cli seed-demo
+.\.venv\Scripts\python -m pytest -q
 ```
 
-生成明日复习清单：
+推荐演示顺序：选择学科 → 录入错题 → 查看与修改分析 → 确认 → 查看复习任务 → 学习画像 → 导出周报。规则模式演示应明确标注；AI 模式可使用自编题目演示真实调用结果。
 
-```powershell
-.\.venv\Scripts\python -m app.cli tomorrow-reviews --output storage/tomorrow_reviews.md
+2026-11-04，在隔离副本中完成 **14 项测试，全部通过**。覆盖录入确认、学科隔离、文档导入、复习、报告、模型指定、低置信度提示和 OCR 修正。测试中的 AI 分支使用模拟响应，尚未进行真实模型准确率评测，见[验证记录](docs/validation.md)。
+
+## 目录结构
+
+```text
+app/ai.py          模型选择、提示词、兼容接口与响应解析
+app/extractors.py  图片、PDF、Word 与文本提取
+app/services.py    分析规范化、规则兜底、人工确认与复习计划
+app/templates/    Jinja2 页面与 HTMX 交互
+app/reports.py     周报与 PDF 导出
+app/scheduler.py   定时生成复习清单和周报
+alembic/           数据库迁移
+tests/             应用流程测试
+docs/              配置、AI 工作流和验证记录
 ```
 
-也可以只生成某个学科：
+## 当前边界
 
-```powershell
-.\.venv\Scripts\python -m app.cli tomorrow-reviews --subject 408
-.\.venv\Scripts\python -m app.cli tomorrow-reviews --subject math1
-```
+项目定位为本机单用户应用。错因与置信度是辅助建议，不是经过校准的诊断或正确率承诺；题目、答案及变式题需要人工核对。启用 AI 后，相关题目文本或图片会发给所配置的模型服务。
 
-## 测试
-
-```powershell
-.\.venv\Scripts\python -m pytest
-```
-
-测试覆盖：
-
-- 手动录入 -> 分析 -> 确认 -> 复习任务生成。
-- `408` 与 `数一` 数据隔离。
-- 周报 Markdown/PDF 导出。
-- 文本文件导入。
-- PDF 文件导入。
-- Word 文档导入。
-- 图片上传（无 AI 时提示手动补充）。
-- AI 低置信度时确认页显示人工复核提示。
-- OCR 文本修正二阶段验证。
-- 错题库按知识点/掌握状态筛选。
-- 来源文件列表。
-- 演示数据和明日复习清单生成。
-- 手动模型指定和记录。
-
-## 复试展示建议
-
-演示顺序建议固定为：生成演示数据 -> 切换学科 -> 上传错题 -> 查看 AI 建议 -> 人工修正 -> 确认生成复习计划 -> Dashboard 查看薄弱知识点/错因趋势 -> 查看来源文件 -> 导出周报。这样能同时讲清楚工程闭环、AI 可控性、知识点图谱、错因归因、推荐/间隔重复算法、任务调度、数据可视化和可追溯的数据来源。
-
-## 复试可讲技术点
-
-- OCR/多模态抽取 + 文本修正二阶段
-- LLM 结构化输出（JSON schema 约束）
-- 知识点图谱（三级树 + 关键词匹配）
-- 错因归因（AI + 规则双通道）
-- 间隔重复算法（0/1/3/7/14 天）
-- APScheduler 后台任务调度
-- SVG 数据可视化（饼图 + 折线图）
-- 可编辑 AI 工作流（人工确认闭环）
-- 扫描 PDF 渲染 + 视觉 OCR fallback
+仓库排除本地密钥、运行数据库和用户上传文件。项目级许可证尚未设置；第三方依赖遵循各自许可证。
